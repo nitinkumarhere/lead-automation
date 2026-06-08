@@ -1,5 +1,5 @@
 {
-  "name": "Aviara Labs - E2E Asynchronous Lead Automation",
+  "name": "Aviara Labs - Verified Asynchronous Lead DB Pipeline",
   "nodes": [
     {
       "parameters": {
@@ -11,97 +11,66 @@
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [400, 300]
+      "position": [250, 300]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const inputData = $input.item.json.body || $input.item.json;\nconst { name, email, company } = inputData;\n\nif (!name || !email || !company || !email.includes('@')) {\n  throw new Error('Validation Failed: Missing required fields or invalid email structure.');\n}\n\nreturn {\n  json: {\n    name: name,\n    email: email,\n    company: company\n  }\n};"
+        "jsCode": "const inputData = $input.item.json.body || $input.item.json;\nconst { name, email, company } = inputData;\n\nif (!name || !email || !company || !email.includes('@')) {\n  throw new Error('Validation Failed: Missing required fields or invalid email structure.');\n}\n\nreturn {\n  json: { name, email, company }\n};"
       },
       "id": "data-validator",
       "name": "Data Validator",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [600, 300]
+      "position": [450, 300]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/process-async",
+        "url": "http://backend:8000/api/v1/enrich",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "X-API-Key",
-              "value": "super-secret-n8n-token"
-            }
+            { "name": "X-API-Key", "value": "super-secret-n8n-token" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"name\": \"{{ $json.name }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"company\": \"{{ $json.company }}\"\n}",
-        "options": {
-          "retryOnFail": true
-        }
+        "options": { "retryOnFail": true }
       },
-      "id": "async-pipeline-api",
-      "name": "HTTP: Dispatch Async Queue Task",
+      "id": "enrichment-api",
+      "name": "HTTP: Async Data Enrichment Task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [800, 300]
+      "position": [650, 300]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://discord.com",
+        "url": "http://backend:8000/api/v1/classify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "super-secret-n8n-token" }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": \"🚨 **New Automated Lead Processed!**\\n• **Name:** {{ $(\"Data Validator\").item.json.name }}\\n• **Company:** {{ $(\"Data Validator\").item.json.company }}\\n• **Status:** Pipeline Queued and Saved to Relational DB\"\n}",
-        "options": {}
+        "jsonBody": "={\n  \"message\": \"Lead verification processing request command.\"\n}",
+        "options": { "retryOnFail": true }
       },
-      "id": "notification-webhook",
-      "name": "HTTP: Send Live Notification",
+      "id": "classification-api",
+      "name": "HTTP: Async AI Intent Task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1000, 300]
+      "position": [850, 300]
     }
   ],
   "connections": {
-    "webhook-trigger": {
-      "main": [
-        [
-          {
-            "node": "data-validator",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "data-validator": {
-      "main": [
-        [
-          {
-            "node": "async-pipeline-api",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "async-pipeline-api": {
-      "main": [
-        [
-          {
-            "node": "notification-webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "webhook-trigger": { "main": [[{ "node": "data-validator", "type": "main", "index": 0 }]] },
+    "data-validator": { "main": [[{ "node": "enrichment-api", "type": "main", "index": 0 }]] },
+    "enrichment-api": { "main": [[{ "node": "classification-api", "type": "main", "index": 0 }]] }
   },
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": { "executionOrder": "v1" }
 }

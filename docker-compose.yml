@@ -47,6 +47,8 @@ services:
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - N8N_PYTHON_ENABLED=false
       - N8N_DATABASE_TIMEOUT=60000
+      - N8N_LICENSE_AUTO_RENEW_ENABLED=true
+      - N8N_LICENSE_DETACH_FLOATING_ON_SHUTDOWN=true
     volumes:
       - n8n_storage_data:/home/node/.n8n
     depends_on:

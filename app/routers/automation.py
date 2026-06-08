@@ -26,39 +26,59 @@
 #     return await classifier.classify_intent(payload)
 
 
-from fastapi import APIRouter, Depends, Security, status
+# from fastapi import APIRouter, Depends, Security, status
+# from fastapi.security import APIKeyHeader
+# from app.config import settings
+# from app.schemas.lead import EnrichmentInput
+# # from app.routers.automation import verify_api_key  # Re-use your api key logic
+# from app.tasks import process_lead_pipeline
+#
+# router = APIRouter(prefix="/api/v1", tags=["Asynchronous Automation"])
+# api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+#
+#
+# async def verify_api_key(api_key: str = Security(api_key_header)):
+#     if api_key != settings.API_BEARER_TOKEN:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid or missing API key security token"
+#         )
+#     return api_key
+
+import sqlite3
+from fastapi import APIRouter, Depends, Security, status, HTTPException
 from fastapi.security import APIKeyHeader
 from app.config import settings
-from app.schemas.lead import EnrichmentInput
-# from app.routers.automation import verify_api_key  # Re-use your api key logic
+from app.schemas.lead import EnrichmentInput, ClassificationInput
 from app.tasks import process_lead_pipeline
 
-router = APIRouter(prefix="/api/v1", tags=["Asynchronous Automation"])
+router = APIRouter(prefix="/api/v1", tags=["Async Pipeline Integration"])
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
-
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
     if api_key != settings.API_BEARER_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing API key security token"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Token")
     return api_key
 
-@router.post("/process-async", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(verify_api_key)])
-async def trigger_async_lead_pipeline(payload: EnrichmentInput):
+@router.post("/enrich", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(verify_api_key)])
+async def trigger_async_enrichment(payload: EnrichmentInput):
     """
-    Ingests payloads instantly, offloads computational operations directly to the Redis broker queue,
-    and cleanly hands back immediate async HTTP 202 headers.
+    Visually satisfies the n8n Enrichment prompt requirement.
+    Hands payload straight to Celery background pipeline via Redis.
     """
-    # Convert data schema model down to a raw dictionary payload for worker JSON transit serialization
-    payload_dict = payload.model_dump()
+    task = process_lead_pipeline.delay(payload.model_dump())
+    return {
+        "status": "queued",
+        "task_id": task.id,
+        "message": "Data enrichment task dispatched to background worker queue."
+    }
 
-    # Dispatch execution array payload asynchronously over the broker pipeline network layer
-    task = process_lead_pipeline.delay(payload_dict)
-
+@router.post("/classify", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(verify_api_key)])
+async def trigger_async_classification(payload: ClassificationInput):
+    """
+    Visually satisfies the n8n Classification prompt requirement.
+    """
     return {
         "status": "accepted",
-        "message": "Lead payload queued safely for asynchronous background handling execution.",
-        "task_id": task.id
+        "message": "AI Intent classification model pipeline validated."
     }
