@@ -1,5 +1,5 @@
 services:
-  # 1. Your FastAPI Backend Application Service
+  # 1. Main FastAPI Gateway Application Routing Service
   backend:
     build: .
     container_name: aviara-fastapi-backend
@@ -7,31 +7,49 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY:-mock-key}
       - API_BEARER_TOKEN=super-secret-n8n-token
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+    depends_on:
+      - redis
     restart: unless-stopped
 
-  # 2. Your Automated n8n Workflow Server Service
+  # 2. Distributed Asynchronous Worker Container Pool Process Engine
+  worker:
+    build: .
+    container_name: aviara-celery-worker
+    command: celery -A app.celery_app.celery_app worker --loglevel=info
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-mock-key}
+      - API_BEARER_TOKEN=super-secret-n8n-token
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # 3. Asynchronous Data Broker Queue Memory Router
+  redis:
+    image: redis:7-alpine
+    container_name: aviara-redis-broker
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # 4. Automations Workflow Server Ingress Engine (Python Initialization Disabled)
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     container_name: aviara-n8n-server
     ports:
       - "5678:5678"
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=false  # Disables setup lock screen for immediate testing
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
     volumes:
       - n8n_storage_data:/home/node/.n8n
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     restart: unless-stopped
 
 volumes:
-  n8n_storage_data: # Ensures your canvas nodes are saved when resetting docker stacks
+  n8n_storage_data:

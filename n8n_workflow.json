@@ -1,5 +1,5 @@
 {
-  "name": "Aviara Labs - AI Lead Automation System",
+  "name": "Aviara Labs - High Speed Asynchronous Lead Automation",
   "nodes": [
     {
       "parameters": {
@@ -11,7 +11,7 @@
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [250, 300]
+      "position": [100, 200]
     },
     {
       "parameters": {
@@ -22,12 +22,12 @@
       "name": "Data Validator",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/enrich",
+        "url": "http://backend:8000/api/v1/process-async",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -44,66 +44,11 @@
           "retryOnFail": true
         }
       },
-      "id": "enrichment-api",
-      "name": "HTTP: Data Enrichment",
+      "id": "async-pipeline-api",
+      "name": "HTTP: Dispatch Async Queue Task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [650, 300]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://backend:8000/api/v1/classify",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-API-Key",
-              "value": "super-secret-n8n-token"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"message\": \"Lead information processing request.\"\n}",
-        "options": {
-          "retryOnFail": true
-        }
-      },
-      "id": "classification-api",
-      "name": "HTTP: AI Intent Classification",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [850, 300]
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "value": "YOUR_SPREADSHEET_ID",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Sheet1",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Name": "={{ $json.name }}",
-            "Email": "={{ $json.email }}",
-            "Company": "={{ $json.company }}"
-          }
-        },
-        "options": {}
-      },
-      "id": "google-sheets-storage",
-      "name": "Save to Google Sheets",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.3,
-      "position": [1050, 300]
+      "position": [500, 200]
     }
   ],
   "connections": {
@@ -122,29 +67,7 @@
       "main": [
         [
           {
-            "node": "enrichment-api",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "enrichment-api": {
-      "main": [
-        [
-          {
-            "node": "classification-api",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "classification-api": {
-      "main": [
-        [
-          {
-            "node": "google-sheets-storage",
+            "node": "async-pipeline-api",
             "type": "main",
             "index": 0
           }
