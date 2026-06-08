@@ -1,5 +1,5 @@
 {
-  "name": "Aviara Labs - High Speed Asynchronous Lead Automation",
+  "name": "Aviara Labs - E2E Asynchronous Lead Automation",
   "nodes": [
     {
       "parameters": {
@@ -11,7 +11,7 @@
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [100, 200]
+      "position": [400, 300]
     },
     {
       "parameters": {
@@ -22,7 +22,7 @@
       "name": "Data Validator",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [600, 300]
     },
     {
       "parameters": {
@@ -48,7 +48,22 @@
       "name": "HTTP: Dispatch Async Queue Task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [500, 200]
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": \"🚨 **New Automated Lead Processed!**\\n• **Name:** {{ $(\"Data Validator\").item.json.name }}\\n• **Company:** {{ $(\"Data Validator\").item.json.company }}\\n• **Status:** Pipeline Queued and Saved to Relational DB\"\n}",
+        "options": {}
+      },
+      "id": "notification-webhook",
+      "name": "HTTP: Send Live Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1000, 300]
     }
   ],
   "connections": {
@@ -68,6 +83,17 @@
         [
           {
             "node": "async-pipeline-api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "async-pipeline-api": {
+      "main": [
+        [
+          {
+            "node": "notification-webhook",
             "type": "main",
             "index": 0
           }
