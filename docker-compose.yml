@@ -1,0 +1,37 @@
+services:
+  # 1. Your FastAPI Backend Application Service
+  backend:
+    build: .
+    container_name: aviara-fastapi-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-mock-key}
+      - API_BEARER_TOKEN=super-secret-n8n-token
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # 2. Your Automated n8n Workflow Server Service
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: aviara-n8n-server
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false  # Disables setup lock screen for immediate testing
+    volumes:
+      - n8n_storage_data:/home/node/.n8n
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  n8n_storage_data: # Ensures your canvas nodes are saved when resetting docker stacks

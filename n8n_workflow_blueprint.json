@@ -1,0 +1,180 @@
+{
+  "name": "Aviara Labs - AI Lead Automation System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "v1/incoming-leads",
+        "options": {}
+      },
+      "id": "fc8402d3-60d9-48aa-ada0-ad0b2a169f55",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "cb013c1f-7bbf-4324-b2fe-3661e0ce1fcf"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const inputData = $input.item.json.body || $input.item.json;\nconst { name, email, company } = inputData;\n\nif (!name || !email || !company || !email.includes('@')) {\n  throw new Error('Validation Failed: Missing required fields or invalid email structure.');\n}\n\nreturn {\n  json: {\n    name: name,\n    email: email,\n    company: company\n  }\n};"
+      },
+      "id": "9477d0d1-e1c4-4bfa-89a2-0519e338d6f8",
+      "name": "Data Validator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/v1/enrich",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "super-secret-n8n-token"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.name }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"company\": \"{{ $json.company }}\"\n}",
+        "options": {}
+      },
+      "id": "2d0884c5-387a-46a7-98bd-5db63b8edb3f",
+      "name": "HTTP: Data Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/v1/classify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "super-secret-n8n-token"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": \"Lead information processing request.\"\n}",
+        "options": {}
+      },
+      "id": "51fdc9d8-1c99-4e1e-9b15-50953248ca60",
+      "name": "HTTP: AI Intent Classification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        608,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Company": "={{ $json.company }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "926767b9-1ad8-4ee9-bf21-0f3c598c14c2",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Data Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Validator": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Data Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Data Enrichment": {
+      "main": [
+        [
+          {
+            "node": "HTTP: AI Intent Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: AI Intent Classification": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2b34580c-3671-44be-8754-f17ecb6bb80d",
+  "meta": {
+    "instanceId": "a5540486af46add54bf85f1140572d10cae65c113d513f2f54190900099a45e2"
+  },
+  "nodeGroups": [],
+  "id": "gTK1z4bsEyAKiqyV",
+  "tags": []
+}
